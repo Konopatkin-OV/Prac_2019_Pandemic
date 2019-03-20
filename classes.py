@@ -2,6 +2,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from PySide2.QtCore import QPointF, QRectF
 from datetime import date
 from copy import deepcopy
+from random import random, randrange
 
 from constants import *
 
@@ -115,7 +116,8 @@ class City(object):
         return self.population.get_total()
 
     def process_time_step(self, infection_update_func):
-        # must return funds balance from current city
+        # must return funds balance delta from current city
+        infection_update_func(self.population)
         return 0.0
 
 
@@ -160,7 +162,7 @@ class Country(object):
 
     def process_time_step(self, infection_update_func):
         for city in self.cities:
-            self.currend_funds += city.process_time_step(infection_update_func)
+            self.current_funds += city.process_time_step(infection_update_func)
 
 ###############################################################
 class SimulationWidget(QtWidgets.QWidget):
@@ -176,7 +178,7 @@ class SimulationWidget(QtWidgets.QWidget):
         # simulation parameters
         self.simulation_period = BASE_SIMULATION_PERIOD # in weeks
         self.simulation_start_date = START_DATE
-        self.infection_update_func = (lambda country: country)
+        self.infection_update_func = (lambda city: city)
 
         # city creation parameters
         self.new_city = City()
@@ -185,6 +187,11 @@ class SimulationWidget(QtWidgets.QWidget):
         self.selected_city = None
 
         self.gui_page = 0
+
+        self.clock = QtCore.QTimer()
+        self.clock.setInterval(1000)
+        self.clock.timeout.connect(self.process_time_step)
+
 
     def containsNewCity(self):
         w, h = self.width(), self.height()
@@ -275,6 +282,9 @@ class SimulationWidget(QtWidgets.QWidget):
         self.SelectedCityPopulationChanged.emit(value)
         self.repaint()
 
+    def set_infection_func(self, func):
+        self.infection_update_func = func
+
     def get_new_city_population(self):
         return self.new_city.get_population()
 
@@ -284,5 +294,16 @@ class SimulationWidget(QtWidgets.QWidget):
         self.repaint()
 
     def process_time_step(self):
-        self.country.process_time_step()
-        self.repaint(self.infection_update_func, self.funds_update_func)
+        self.country.process_time_step(self.infection_update_func)
+        self.repaint()
+
+    def start_simulation(self):
+        self.process_time_step()
+        self.clock.start()
+
+    def stop_simulation(self):
+        self.clock.stop()
+
+    def step_simulation(self):
+        self.clock.stop()
+        self.process_time_step()

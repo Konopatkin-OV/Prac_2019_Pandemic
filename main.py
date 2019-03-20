@@ -81,6 +81,28 @@ for i in range(10):
 
 #########################
 
+def test_clock_madness(self):
+    city = self.parent_city
+    country = city.parent_country
+
+    r = randrange(0, 255)
+    g = randrange(0, 255)
+    b = randrange(0, 255)
+    city.norm_color = QtGui.QColor(r, g, b)
+    city.r = CITY_SIZES[randrange(2, len(CITY_SIZES))]
+    x = randrange(15, COUNTRY_SIZE[0] - 30)
+    y = randrange(15, COUNTRY_SIZE[1] - 30)
+    city.pos = QPointF(x, y)
+
+    Max = 100
+    Speed = 150
+    if (randrange(1000) == 0):
+        country.add_city(City())
+        country.cities = country.cities[:Max]
+    simulator.clock.setInterval(len(country.cities) / Max * Speed)
+
+#########################
+
 app = QtWidgets.QApplication(sys.argv)
 window = QtWidgets.QMainWindow()
 window.setWindowTitle("Pandemic")
@@ -101,6 +123,9 @@ errorFont.setWeight(75)
 simulator = SimulationWidget(country, window)
 simulator.setGeometry(*COUNTRY_POS, *COUNTRY_SIZE)
 
+simulator.set_infection_func(test_clock_madness)
+# simulator.set_infection_func(test_clock_madness)
+
 simulator.new_city.set_pos(QtCore.QPointF(200, 100))
 simulator.new_city.set_population(10 ** 3)
 
@@ -113,6 +138,18 @@ tab_global = QtWidgets.QWidget()
 label = QtWidgets.QLabel(tab_global)
 label.setGeometry(10, 10, 300, 100)
 label.setText("Page 1\n[line 2]")
+
+start_button = QtWidgets.QPushButton("Start", tab_global)
+start_button.setGeometry(25, 400, 100, 40)
+start_button.clicked.connect(simulator.start_simulation)
+
+pause_button = QtWidgets.QPushButton("Pause", tab_global)
+pause_button.setGeometry(145, 400, 100, 40)
+pause_button.clicked.connect(simulator.stop_simulation)
+
+step_button = QtWidgets.QPushButton("Step", tab_global)
+step_button.setGeometry(265, 400, 100, 40)
+step_button.clicked.connect(simulator.step_simulation)
 
 control_tabs.addTab(tab_global, "Simulation")
 ########
