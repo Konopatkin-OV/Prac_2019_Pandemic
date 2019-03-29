@@ -18,7 +18,7 @@ class Population(object):
         self.parent_city = parent_city
 
         self.total_population = 0
-        self.population_gropus = [0 for i in range(self.N_POP_CATS)]
+        self.population_groups = [0 for i in range(self.N_POP_CATS)]
 
     def get_total(self):
         return self.total_population
@@ -34,6 +34,10 @@ class Population(object):
         mask = [(i % 2) * (i > 8) for i in range(self.N_POP_CATS)]
         return self.get_group(mask)
 
+    def get_infected_population(self):
+        mask = [(i >= 8) for i in range(self.N_POP_CATS)]
+        return self.get_group(mask)
+
     def set_total_population(self, new_total):
         # reset with all healthy not vaccinated
         self.total_population = int(new_total)
@@ -44,20 +48,95 @@ class Population(object):
         self.population_groups[1] = not_working
 
     def pass_week(self):
+        #print("PASSING")
+        #print(self)
         # shift infected 
-        cur = (0, 0)
-        for i in range(4):
+        for i in range(3):
             for j in range(0, 8):
-                self.population_groups[i*8+j] += self.population_groups[(i+1)*8+j]
-                self.population_groups[(i+1)*8+j] = 0
-
+                src_index = (i+1)*8+j
+                dst_index = i*8+j
+                #if i == 0:
+                    # now healthy and immune?
+                    #dst_index = 6 + j % 2
+                self.population_groups[dst_index] += self.population_groups[src_index]
+                self.population_groups[src_index] = 0
+        #print(self)
         # shift vaccinated
-        cur = (0, 0)
-        for i in range(3, 0, -1):
+        for i in range(3, 1, -1):
             for j in range(0, 4):
                 for k in range(2):
-                    self.population_groups[j*8+i*2+k] += self.population_groups[j*8+(i-1)*2+k]
-                    self.population_groups[j*8+(i-1)*2+k] = 0
+                    src_index = j*8+(i-1)*2+k
+                    dst_index = j*8+i*2+k
+                    self.population_groups[dst_index] += self.population_groups[src_index]
+                    self.population_groups[src_index] = 0
+        #print(self)
+        #print("PASSED")
+
+    def vaccinate(self, quota):
+        return 0
+
+    def infect(self, quota):
+        #print(self)
+        infectable_groups = self.population_groups[:6]
+        infectable = sum(infectable_groups)
+
+        quota = min(quota, infectable)
+
+        def get_destribution(n):
+            pts = [0] + list(sorted([random() for i in range(n)])) + [1]
+            return [pts[i + 1] - pts[i] for i in range(n)]
+
+        # decide who to infect
+        group_coeffs = get_destribution(6)
+        groups = [int(quota * group_coeffs[i]) for i in range(6)]
+        groups[0] += quota - sum(groups)
+
+        good = {i for i in range(6)}
+
+        # check for overflowing and redestribute
+        for i in range(6):
+            if groups[i] > infectable_groups[i]:
+                good -= {i}
+                delta = groups[i] - infectable_groups[i]
+                groups[i] = infectable_groups[i]
+
+                cur_group_coeffs = get_destribution(len(good))
+                cur_delta = [int(delta * cur_group_coeffs[j]) for j in range(len(good))]
+                cur_delta[0] += delta - sum(cur_delta)
+                for g, j in zip(list(good), range(len(good))):
+                    groups[g] += cur_delta[j]
+
+        for i in range(6):
+            self.population_groups[i] -= groups[i]
+
+        # decide infection duration
+        for i in range(6):
+            cur_groups = [int(INFECTION_DURATION[j] * groups[i]) for j in range(3)]
+            cur_groups[0] += groups[i] - sum(cur_groups)
+            for j in range(3):
+                self.population_groups[i+(j+1)*8] += cur_groups[j]
+
+        if (self.total_population != sum(self.population_groups)):
+            print("A" * 50)
+
+        #print(self)
+        #print()
+
+        return quota
+
+
+    def standard_process(self):
+        infected = self.get_infected_population()
+        new_infected = infected * self.parent_city.transport_density
+        new_infected = int(new_infected * (random() / 4 + (7 / 8)))
+
+        # test
+        new_infected = int(self.total_population * random() / 3)
+
+        self.infect(new_infected)
+
+    def __str__(self):
+        return ((("{} " * 8) + '\n') * 4).format(*self.population_groups)
 
 
 class City(object):
@@ -115,10 +194,30 @@ class City(object):
     def get_population(self):
         return self.population.get_total()
 
+    def get_infected(self):
+        return self.population.get_infected_population()
+
+    def set_vaccination_quota(self, quota):
+        self.vaccination_quota = quota
+
     def process_time_step(self, infection_update_func):
         # must return funds balance delta from current city
+
+        self.population.pass_week()
+
+        vaccinated = self.population.vaccinate(self.vaccination_quota)
+
         infection_update_func(self.population)
-        return 0.0
+
+        delta_funds = self.parent_country.tax_per_soul * self.population.get_taxable_population()
+        delta_funds -= self.parent_country.vaccination_cost * vaccinated
+        delta_funds -= self.parent_country.relief_cost * self.population.get_relief_population()
+
+        infected = self.population.get_infected_population()
+        #print(infected)
+        self.is_epidemic = infected >= self.population.get_total() * EPIDEMIC_BORDER
+
+        return delta_funds
 
 
 class Country(object):
@@ -164,6 +263,31 @@ class Country(object):
         for city in self.cities:
             self.current_funds += city.process_time_step(infection_update_func)
 
+
+    def get_vaccination_cost(self):
+        return self.vaccination_cost
+
+    def set_vaccination_cost(self, cost):
+        self.vaccination_cost = cost;
+
+    def get_relief_cost(self):
+        return self.relief_cost
+
+    def set_relief_cost(self, cost):
+        self.relief_cost = cost;
+
+    def get_current_funds(self):
+        return self.current_funds
+
+    def set_current_funds(self, funds):
+        self.current_funds = funds;
+
+    def get_tax(self):
+        return self.tax_per_soul
+
+    def set_tax(self, tax):
+        self.tax_per_soul = tax;
+
 ###############################################################
 class SimulationWidget(QtWidgets.QWidget):
     SelectedCity = QtCore.Signal(bool)
@@ -174,6 +298,9 @@ class SimulationWidget(QtWidgets.QWidget):
         self.setMouseTracking(True)
 
         self.country = country
+
+        self.param_labels = []
+        self.cur_city_labels = []
 
         # simulation parameters
         self.simulation_period = BASE_SIMULATION_PERIOD # in weeks
@@ -254,7 +381,50 @@ class SimulationWidget(QtWidgets.QWidget):
             painter.setBrush(CITY_SELECT_COLOR)
             painter.drawEllipse(pos, r, r)
 
+            values = [self.selected_city.get_population(),
+                      self.selected_city.get_infected()]
+            names = ["Population", "Infected"]
+            for name, label, value in zip(names, self.cur_city_labels, values):
+                label.setText("{}: {}".format(name, value))
+
+        values = [self.country.get_current_funds(),
+                  self.country.get_tax(),
+                  self.country.get_vaccination_cost(),
+                  self.country.get_relief_cost()]
+        names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief"]
+        for name, label, value in zip(names, self.param_labels, values):
+            label.setText("{}: {}".format(name, value))
+
         painter.end()
+
+    # global params management
+    def set_param_labels(self, labels):
+        self.param_labels = labels
+
+    def set_current_funds(self, funds):
+        self.country.set_current_funds(funds)
+        self.repaint()
+
+    def set_tax(self, tax):
+        self.country.set_tax(tax)
+        self.repaint()
+
+    def set_vaccination_cost(self, cost):
+        self.country.set_vaccination_cost(cost)
+        self.repaint()
+
+    def set_relief_cost(self, cost):
+        self.country.set_relief_cost(cost)
+        self.repaint()
+
+    # selected city params management
+    def set_vaccination_quota(self, quota):
+        self.selected_city.set_vaccination_quota(quota)
+
+    def set_cur_city_labels(self, labels):
+        self.cur_city_labels = labels
+
+
 
     def keyPressEvent(self, event):
         if event.matches(QtGui.QKeySequence.StandardKey.Delete):
