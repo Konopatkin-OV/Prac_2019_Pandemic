@@ -27,7 +27,7 @@ class Population(object):
         return sum([self.population_groups[i] for i in range(self.N_POP_CATS) if mask[i]])
 
     def get_taxable_population(self):
-        mask = [(i % 2) * (i < 8) for i in range(self.N_POP_CATS)]
+        mask = [(1 - i % 2) * (i < 8) for i in range(self.N_POP_CATS)]
         return self.get_group(mask)
 
     def get_relief_population(self):
@@ -37,6 +37,14 @@ class Population(object):
     def get_infected_population(self):
         mask = [(i >= 8) for i in range(self.N_POP_CATS)]
         return self.get_group(mask)
+
+    def get_vaccinated_population(self):
+        mask = [(i % 8) >= 2 for i in range(self.N_POP_CATS)]
+        return self.get_group(mask)
+
+    def get_immune_population(self):
+        mask = [(i % 8) >= 6 for i in range(self.N_POP_CATS)]
+        return self.get_group(mask)                
 
     def set_total_population(self, new_total):
         # reset with all healthy not vaccinated
@@ -73,10 +81,31 @@ class Population(object):
         #print("PASSED")
 
     def vaccinate(self, quota):
-        return 0
+        # -_-'
+        vaccinable_groups = self.population_groups[:2]
+        vaccinable = sum(vaccinable_groups)
+
+        quota = min(quota, vaccinable)
+
+        d = random()
+        g1 = int(quota * d)
+        g2 = quota - g1
+        if g1 > vaccinable_groups[0]:
+            g2 += g1 - vaccinable_groups[0]
+            g1 = vaccinable_groups[0]
+        elif g2 > vaccinable_groups[1]:
+            g1 += g2 - vaccinable_groups[1]
+            g2 = vaccinable_groups[1]
+
+        self.population_groups[0] -= g1
+        self.population_groups[1] -= g2
+
+        self.population_groups[2] += g1
+        self.population_groups[3] += g2
+
+        return quota
 
     def infect(self, quota):
-        #print(self)
         infectable_groups = self.population_groups[:6]
         infectable = sum(infectable_groups)
 
@@ -91,20 +120,24 @@ class Population(object):
         groups = [int(quota * group_coeffs[i]) for i in range(6)]
         groups[0] += quota - sum(groups)
 
+
         good = {i for i in range(6)}
-
         # check for overflowing and redestribute
-        for i in range(6):
-            if groups[i] > infectable_groups[i]:
-                good -= {i}
-                delta = groups[i] - infectable_groups[i]
-                groups[i] = infectable_groups[i]
+        while True:
+            for i in range(6):
+                if groups[i] > infectable_groups[i]:
+                    good -= {i}
+                    delta = groups[i] - infectable_groups[i]
+                    groups[i] = infectable_groups[i]
 
-                cur_group_coeffs = get_destribution(len(good))
-                cur_delta = [int(delta * cur_group_coeffs[j]) for j in range(len(good))]
-                cur_delta[0] += delta - sum(cur_delta)
-                for g, j in zip(list(good), range(len(good))):
-                    groups[g] += cur_delta[j]
+                    cur_group_coeffs = get_destribution(len(good))
+                    cur_delta = [int(delta * cur_group_coeffs[j]) for j in range(len(good))]
+                    cur_delta[0] += delta - sum(cur_delta)
+                    for g, j in zip(list(good), range(len(good))):
+                        groups[g] += cur_delta[j]
+                    break
+            else:
+                break
 
         for i in range(6):
             self.population_groups[i] -= groups[i]
@@ -116,12 +149,6 @@ class Population(object):
             for j in range(3):
                 self.population_groups[i+(j+1)*8] += cur_groups[j]
 
-        if (self.total_population != sum(self.population_groups)):
-            print("A" * 50)
-
-        #print(self)
-        #print()
-
         return quota
 
 
@@ -130,8 +157,10 @@ class Population(object):
         new_infected = infected * self.parent_city.transport_density
         new_infected = int(new_infected * (random() / 4 + (7 / 8)))
 
+        print(new_infected)
+
         # test
-        new_infected = int(self.total_population * random() / 3)
+        # new_infected = int(self.total_population * random() / 3)
 
         self.infect(new_infected)
 
@@ -184,6 +213,7 @@ class City(object):
     def set_population(self, value):
         self.population.set_total_population(int(value))
         self.r = self.get_radius()
+        self.update_infected()
 
     def set_alpha(self, value):
         self.alpha = int(value)
@@ -197,15 +227,34 @@ class City(object):
     def get_infected(self):
         return self.population.get_infected_population()
 
+    def get_vaccinated(self):
+        return self.population.get_vaccinated_population()
+
+    def get_immune(self):
+        return self.population.get_immune_population()
+
+
     def set_vaccination_quota(self, quota):
         self.vaccination_quota = quota
 
-    def process_time_step(self, infection_update_func):
+    def vaccinate(self, quota):
+        return self.population.vaccinate(quota)
+
+    def infect(self, quota):
+        infected = self.population.infect(quota)
+        self.update_infected()
+        return infected
+
+    def update_infected(self):
+        infected = self.population.get_infected_population()
+        self.is_epidemic = infected >= self.population.get_total() * EPIDEMIC_BORDER
+
+    def process_time_step(self, infection_update_func, funds_quota):
         # must return funds balance delta from current city
 
         self.population.pass_week()
 
-        vaccinated = self.population.vaccinate(self.vaccination_quota)
+        vaccinated = self.vaccinate(min(funds_quota, self.vaccination_quota))
 
         infection_update_func(self.population)
 
@@ -213,9 +262,9 @@ class City(object):
         delta_funds -= self.parent_country.vaccination_cost * vaccinated
         delta_funds -= self.parent_country.relief_cost * self.population.get_relief_population()
 
-        infected = self.population.get_infected_population()
-        #print(infected)
-        self.is_epidemic = infected >= self.population.get_total() * EPIDEMIC_BORDER
+        self.update_infected()
+
+        print(self.population)
 
         return delta_funds
 
@@ -261,7 +310,8 @@ class Country(object):
 
     def process_time_step(self, infection_update_func):
         for city in self.cities:
-            self.current_funds += city.process_time_step(infection_update_func)
+            self.current_funds += city.process_time_step(infection_update_func, 
+                                  max(0, int(self.current_funds / self.vaccination_cost)))
 
 
     def get_vaccination_cost(self):
@@ -315,9 +365,13 @@ class SimulationWidget(QtWidgets.QWidget):
 
         self.gui_page = 0
 
+        self.clock_interval = 1000
         self.clock = QtCore.QTimer()
         self.clock.setInterval(1000)
         self.clock.timeout.connect(self.process_time_step)
+
+        self.simulating = False
+        self.time_counter = 0
 
 
     def containsNewCity(self):
@@ -367,7 +421,7 @@ class SimulationWidget(QtWidgets.QWidget):
                 new_pen.setWidth(3)
                 painter.setPen(new_pen)
                 painter.drawEllipse(pos, r, r)
-        elif self.gui_page == 2 and self.selected_city is not None:
+        if self.selected_city is not None:
             pos, r = self.selected_city.pos, self.selected_city.r
 
             new_pen = QtGui.QPen()
@@ -382,16 +436,21 @@ class SimulationWidget(QtWidgets.QWidget):
             painter.drawEllipse(pos, r, r)
 
             values = [self.selected_city.get_population(),
-                      self.selected_city.get_infected()]
-            names = ["Population", "Infected"]
+                      self.selected_city.get_infected(), 
+                      self.selected_city.get_vaccinated(),
+                      self.selected_city.get_immune()
+                      ]
+            names = ["Population", "Infected", "Vaccinated", "Immune"]
             for name, label, value in zip(names, self.cur_city_labels, values):
                 label.setText("{}: {}".format(name, value))
 
         values = [self.country.get_current_funds(),
                   self.country.get_tax(),
                   self.country.get_vaccination_cost(),
-                  self.country.get_relief_cost()]
-        names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief"]
+                  self.country.get_relief_cost(),
+                  self.clock_interval / 1000
+                  ]
+        names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief", "Step interval (seconds)"]
         for name, label, value in zip(names, self.param_labels, values):
             label.setText("{}: {}".format(name, value))
 
@@ -417,9 +476,31 @@ class SimulationWidget(QtWidgets.QWidget):
         self.country.set_relief_cost(cost)
         self.repaint()
 
+    def set_clock_interval(self, delta):
+        self.clock_interval = 1000 * delta
+        self.clock.setInterval(self.clock_interval)
+        self.repaint()
+
     # selected city params management
+    def set_cur_population(self, amount):
+        if self.selected_city is not None:
+            self.selected_city.set_population(amount)
+        self.repaint()
+
+    def infect_cur(self, quota):
+        if self.selected_city is not None:
+            self.selected_city.infect(quota)
+        self.repaint()
+
+    def vaccinate_cur(self, quota):
+        if self.selected_city is not None:
+            self.selected_city.vaccinate(quota)
+        self.repaint()
+
     def set_vaccination_quota(self, quota):
-        self.selected_city.set_vaccination_quota(quota)
+        if self.selected_city is not None:
+            self.selected_city.set_vaccination_quota(quota)
+        self.repaint()
 
     def set_cur_city_labels(self, labels):
         self.cur_city_labels = labels
@@ -427,10 +508,18 @@ class SimulationWidget(QtWidgets.QWidget):
 
 
     def keyPressEvent(self, event):
-        if event.matches(QtGui.QKeySequence.StandardKey.Delete):
+        if event.key() == QtCore.Qt.Key_Delete:
             self.remove_city()
+        elif event.key() == QtCore.Qt.Key_Space:
+            if self.simulating:
+                self.stop_simulation()
+            else:
+                self.start_simulation()
+        elif event.key() == QtCore.Qt.Key_Right:
+            self.step_simulation()
 
     def mousePressEvent(self, event):
+        self.setFocus()
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             if self.gui_page == 1 and self.containsNewCity():
                 if self.has_space_to_place():
@@ -460,20 +549,23 @@ class SimulationWidget(QtWidgets.QWidget):
 
     def gui_page_change(self, value):
         self.gui_page = value
-        self.selected_city = None
+        # self.selected_city = None
         self.repaint()
 
     def process_time_step(self):
         self.country.process_time_step(self.infection_update_func)
+        self.time_counter += 1
         self.repaint()
 
     def start_simulation(self):
         self.process_time_step()
         self.clock.start()
+        self.simulating = True
 
     def stop_simulation(self):
         self.clock.stop()
+        self.simulating = False
 
     def step_simulation(self):
-        self.clock.stop()
+        self.stop_simulation()
         self.process_time_step()

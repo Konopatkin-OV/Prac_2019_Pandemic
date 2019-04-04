@@ -72,12 +72,20 @@ country = Country()
 #########################
 
 cur = City()
-for i in range(10):
+for i in range(6,7):
     cur.pos = QtCore.QPointF(60 + 40 * i, 250)
     cur.set_population(10 ** i)
+    cur.set_vaccination_quota(10 ** (i - 2))
+    cur.population.infect(1 * 10 ** (i - 2))
+    cur.set_transport_density(1.2)
     #cur.is_epidemic = i % 2
     #cur.alpha = 255 - (i + 1) * 25
     country.add_city(cur)
+
+country.vaccination_cost = 10.0
+country.relief_cost = 10.0
+country.current_funds = 100000.0
+country.tax_per_soul = 1.0
 
 #########################
 
@@ -132,7 +140,7 @@ simulator.new_city.set_population(10 ** 3)
 
 ###########################################
 control_tabs = QtWidgets.QTabWidget(window)
-control_tabs.setGeometry(10, 10, 400, 580)
+control_tabs.setGeometry(10, 10, 600, 580)
 #######################
 tab_global = QtWidgets.QWidget()
 
@@ -155,14 +163,14 @@ cur_funds_input.editingFinished.connect(change_state_func(simulator.set_current_
 ###
 
 tax_label = QtWidgets.QLabel(tab_global)
-tax_label.setGeometry(25, 110, 300, 40)
+tax_label.setGeometry(25, 105, 300, 40)
 tax_label.setText("Taxes per person: 0")
 
 tax_input = QtWidgets.QLineEdit(tab_global)
-tax_input.setGeometry(25, 150, 200, 30)
+tax_input.setGeometry(25, 145, 200, 30)
 
 tax_input_stat_label = QtWidgets.QLabel(tab_global)
-tax_input_stat_label.setGeometry(25, 180, 400, 30)
+tax_input_stat_label.setGeometry(25, 175, 400, 30)
 tax_input_stat_label.setText("")
 tax_input_stat_label.setFont(errorFont)
 tax_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
@@ -173,14 +181,14 @@ tax_input.editingFinished.connect(change_state_func(simulator.set_tax,
 ###
 
 vaccination_label = QtWidgets.QLabel(tab_global)
-vaccination_label.setGeometry(25, 210, 300, 40)
+vaccination_label.setGeometry(25, 200, 300, 40)
 vaccination_label.setText("Vaccination cost: 0")
 
 vaccination_input = QtWidgets.QLineEdit(tab_global)
-vaccination_input.setGeometry(25, 250, 200, 30)
+vaccination_input.setGeometry(25, 240, 200, 30)
 
 vaccination_input_stat_label = QtWidgets.QLabel(tab_global)
-vaccination_input_stat_label.setGeometry(25, 280, 400, 30)
+vaccination_input_stat_label.setGeometry(25, 270, 400, 30)
 vaccination_input_stat_label.setText("")
 vaccination_input_stat_label.setFont(errorFont)
 vaccination_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
@@ -191,14 +199,14 @@ vaccination_input.editingFinished.connect(change_state_func(simulator.set_vaccin
 ###
 
 relief_label = QtWidgets.QLabel(tab_global)
-relief_label.setGeometry(25, 310, 300, 40)
+relief_label.setGeometry(25, 295, 300, 40)
 relief_label.setText("Relief: 0")
 
 relief_input = QtWidgets.QLineEdit(tab_global)
-relief_input.setGeometry(25, 350, 200, 30)
+relief_input.setGeometry(25, 335, 200, 30)
 
 relief_input_stat_label = QtWidgets.QLabel(tab_global)
-relief_input_stat_label.setGeometry(25, 380, 400, 30)
+relief_input_stat_label.setGeometry(25, 365, 400, 30)
 relief_input_stat_label.setText("")
 relief_input_stat_label.setFont(errorFont)
 relief_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
@@ -208,7 +216,25 @@ relief_input.editingFinished.connect(change_state_func(simulator.set_relief_cost
 
 ###
 
-simulator.set_param_labels([cur_funds_label, tax_label, vaccination_label, relief_label])
+speed_label = QtWidgets.QLabel(tab_global)
+speed_label.setGeometry(50, 390, 300, 40)
+speed_label.setText("Step interval (seconds): 1")
+
+speed_input = QtWidgets.QLineEdit(tab_global)
+speed_input.setGeometry(50, 430, 200, 30)
+
+speed_input_stat_label = QtWidgets.QLabel(tab_global)
+speed_input_stat_label.setGeometry(50, 460, 400, 30)
+speed_input_stat_label.setText("")
+speed_input_stat_label.setFont(errorFont)
+speed_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+speed_input.editingFinished.connect(change_state_func(simulator.set_clock_interval, 
+    parse_float_input_func(speed_input, 0.5, 5, speed_input_stat_label)))
+
+###
+
+simulator.set_param_labels([cur_funds_label, tax_label, vaccination_label, relief_label, speed_label])
 
 #####
 
@@ -255,24 +281,71 @@ label.setGeometry(100, 10, 200, 40)
 label.setText("Please, select a city")
 
 city_pop_label = QtWidgets.QLabel(tab_manage_city)
-city_pop_label.setGeometry(10, 10, 300, 40)
+city_pop_label.setGeometry(10, 10, 200, 30)
 city_pop_label.setText("Total population:")
-city_pop_label.hide()
 
-infected_label = QtWidgets.QLabel(tab_manage_city)
-infected_label.setGeometry(10, 60, 300, 40)
-infected_label.setText("Infected population:")
-infected_label.hide()
+city_pop_input = QtWidgets.QLineEdit(tab_manage_city)
+city_pop_input.setGeometry(230, 10, 150, 30)
 
-simulator.set_cur_city_labels([city_pop_label, infected_label])
+city_pop_button = QtWidgets.QPushButton(tab_manage_city)
+city_pop_button.setText("Reset")
+city_pop_button.setGeometry(390, 10, 80, 30)
+
+city_pop_stat_label = QtWidgets.QLabel(tab_manage_city)
+city_pop_stat_label.setGeometry(230, 40, 350, 30)
+city_pop_stat_label.setText("")
+city_pop_stat_label.setFont(errorFont)
+city_pop_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+city_pop_button.pressed.connect(change_state_func(simulator.set_cur_population, 
+    parse_int_input_func(city_pop_input, CITY_MIN_POPULATION, CITY_MAX_POPULATION, city_pop_stat_label)))
+
+
+city_infected_label = QtWidgets.QLabel(tab_manage_city)
+city_infected_label.setGeometry(10, 70, 200, 30)
+city_infected_label.setText("Infected population:")
+
+city_infect_input = QtWidgets.QLineEdit(tab_manage_city)
+city_infect_input.setGeometry(230, 70, 150, 30)
+
+city_infect_button = QtWidgets.QPushButton(tab_manage_city)
+city_infect_button.setText("Infect")
+city_infect_button.setGeometry(390, 70, 80, 30)
+
+city_infect_stat_label = QtWidgets.QLabel(tab_manage_city)
+city_infect_stat_label.setGeometry(230, 110, 350, 30)
+city_infect_stat_label.setText("")
+city_infect_stat_label.setFont(errorFont)
+city_infect_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+city_infect_button.pressed.connect(change_state_func(simulator.infect_cur, 
+    parse_int_input_func(city_infect_input, CITY_MIN_POPULATION, CITY_MAX_POPULATION, city_infect_stat_label)))
+
+
+city_vaccinated_label = QtWidgets.QLabel(tab_manage_city)
+city_vaccinated_label.setGeometry(10, 130, 200, 30)
+city_vaccinated_label.setText("Vaccinated population:")
+
+
+city_immune_label = QtWidgets.QLabel(tab_manage_city)
+city_immune_label.setGeometry(10, 190, 200, 30)
+city_immune_label.setText("Immune population:")
+
+simulator.set_cur_city_labels([city_pop_label, city_infected_label, city_vaccinated_label, city_immune_label])
 
 delete_city_button = QtWidgets.QPushButton("Annihilate city", tab_manage_city)
 delete_city_button.setGeometry(100, 400, 200, 40)
-delete_city_button.hide()
 
 delete_city_button.clicked.connect(simulator.remove_city)
 
-simulator.SelectedCity.connect(show_function([[label], [city_pop_label, infected_label, delete_city_button]]))
+elems = [city_pop_label, city_infected_label, city_vaccinated_label, city_immune_label,
+         city_pop_input, city_pop_button, city_pop_stat_label,
+         city_infect_input, city_infect_button, city_infect_stat_label,
+         delete_city_button]
+for elem in elems:
+    elem.hide()
+
+simulator.SelectedCity.connect(show_function([[label], elems]))
 
 control_tabs.addTab(tab_manage_city, "Manage City")
 ###########################################

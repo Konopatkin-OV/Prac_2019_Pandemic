@@ -1,11 +1,11 @@
 from PySide2 import QtCore, QtGui
 from datetime import date
 
-WINDOW_SIZE = (1000, 600)
+WINDOW_SIZE = (1200, 600)
 WINDOW_START_IDENT = (300, 200)
 
 COUNTRY_SIZE = (500, 500)
-COUNTRY_POS = (450, 50)
+COUNTRY_POS = (650, 50)
 
 START_DATE = date(2000, 1, 1)
 BASE_SIMULATION_PERIOD = 20 #weeks
