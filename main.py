@@ -77,7 +77,7 @@ for i in range(6,7):
     cur.set_population(10 ** i)
     cur.set_vaccination_quota(10 ** (i - 2))
     cur.population.infect(1 * 10 ** (i - 2))
-    cur.set_transport_density(1.2)
+    cur.set_transport_density(1.5)
     #cur.is_epidemic = i % 2
     #cur.alpha = 255 - (i + 1) * 25
     country.add_city(cur)
@@ -230,11 +230,36 @@ speed_input_stat_label.setFont(errorFont)
 speed_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
 
 speed_input.editingFinished.connect(change_state_func(simulator.set_clock_interval, 
-    parse_float_input_func(speed_input, 0.5, 5, speed_input_stat_label)))
+    parse_float_input_func(speed_input, 0.01, 5, speed_input_stat_label)))
 
 ###
 
-simulator.set_param_labels([cur_funds_label, tax_label, vaccination_label, relief_label, speed_label])
+time_label = QtWidgets.QLabel(tab_global)
+time_label.setGeometry(350, 10, 300, 40)
+time_label.setText("Elapsed time: 0")
+
+time_reset_button = QtWidgets.QPushButton("Reset", tab_global)
+time_reset_button.setGeometry(400, 50, 100, 40)
+time_reset_button.clicked.connect(simulator.reset_time)
+
+total_population_label = QtWidgets.QLabel(tab_global)
+total_population_label.setGeometry(300, 120, 300, 40)
+total_population_label.setText("Total population: 0")
+
+total_infected_label = QtWidgets.QLabel(tab_global)
+total_infected_label.setGeometry(300, 170, 300, 40)
+total_infected_label.setText("Total infected: 0")
+
+total_vaccinated_label = QtWidgets.QLabel(tab_global)
+total_vaccinated_label.setGeometry(300, 220, 300, 40)
+total_vaccinated_label.setText("Total vaccinated: 0")
+
+total_immune_label = QtWidgets.QLabel(tab_global)
+total_immune_label.setGeometry(300, 270, 300, 40)
+total_immune_label.setText("Total immune: 0")
+
+simulator.set_param_labels([cur_funds_label, tax_label, vaccination_label, relief_label, speed_label,
+                            time_label, total_population_label, total_infected_label, total_vaccinated_label, total_immune_label])
 
 #####
 
@@ -441,7 +466,7 @@ city_vaccinate_input.setGeometry(310, 190, 150, 30)
 
 city_vaccinate_button = QtWidgets.QPushButton(tab_manage_city)
 city_vaccinate_button.setText("Vaccinate")
-city_vaccinate_button.setGeometry(480, 190, 100, 30)
+city_vaccinate_button.setGeometry(470, 190, 100, 30)
 
 city_vaccinate_stat_label = QtWidgets.QLabel(tab_manage_city)
 city_vaccinate_stat_label.setGeometry(310, 220, 350, 30)
@@ -502,28 +527,20 @@ simulator.SelectedCity.connect(show_function([[label], elems]))
 control_tabs.addTab(tab_manage_city, "Manage City")
 ###########################################
 
-
 QtCore.QObject.connect(control_tabs, QtCore.SIGNAL("currentChanged(int)"),
                        simulator.gui_page_change)
 
-# QtCore.QTimer
-
-#SpinBox = QtWidgets.QSpinBox(Window)
-#SpinBox.setGeometry(220, 50, 100, 30)
-#SpinBox.setMaximum(DEPTHS["Кривая Коха"])
-#SpinBox.setFont(BaseFont)
-#ComboBox = QtWidgets.QComboBox(Window)
-#for i in range(len(FRACTALS)):
-    #ComboBox.insertItem(i, FRACTALS[i])
-#ComboBox.setGeometry(10, 50, 210, 30)
-#
-#QtCore.QObject.connect(SpinBox, QtCore.SIGNAL("valueChanged(int)"),
-                       #Window.FractalWidget.setValue)
-#QtCore.QObject.connect(ComboBox, QtCore.SIGNAL("currentIndexChanged(int)"),
-                       #Window.FractalWidget.setType)
 window.show()
 app.exec_()
 
 
 #+ github
 #-> alesapin@gmail.com
+
+# TODO: 
+# прикрутить даты и сезонность
+# прикрутить таки типы городов и заражать в зависимости от типа + процентно пропорционально населению
+#
+#
+#
+#

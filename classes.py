@@ -57,8 +57,6 @@ class Population(object):
         self.population_groups[1] = not_working
 
     def pass_week(self):
-        #print("PASSING")
-        #print(self)
         # shift infected 
         for i in range(3):
             for j in range(0, 8):
@@ -69,7 +67,7 @@ class Population(object):
                     #dst_index = 6 + j % 2
                 self.population_groups[dst_index] += self.population_groups[src_index]
                 self.population_groups[src_index] = 0
-        #print(self)
+
         # shift vaccinated
         for i in range(3, 1, -1):
             for j in range(0, 4):
@@ -78,8 +76,6 @@ class Population(object):
                     dst_index = j*8+i*2+k
                     self.population_groups[dst_index] += self.population_groups[src_index]
                     self.population_groups[src_index] = 0
-        #print(self)
-        #print("PASSED")
 
     def vaccinate(self, quota):
         # -_-'
@@ -155,7 +151,9 @@ class Population(object):
 
     def standard_process(self):
         infected = self.get_infected_population()
-        new_infected = infected * self.parent_city.transport_density
+        total = self.get_total()
+        vaccinated = self.get_vaccinated_population()
+        new_infected = infected * ((total - vaccinated) / total) * self.parent_city.transport_density
         new_infected = int(new_infected * (random() / 4 + (7 / 8)))
 
         #print(new_infected)
@@ -182,6 +180,7 @@ class City(object):
         self.vaccination_quota = 0
 
         self.norm_color = CITY_NORMAL_COLOR
+        self.infect_color = CITY_INFECTED_COLOR
         self.epid_color = CITY_EPIDEMIC_COLOR
 
         self.alpha = 255
@@ -194,6 +193,11 @@ class City(object):
         painter.setPen(city_color)
         painter.setBrush(city_color)
         painter.drawEllipse(self.pos, self.r, self.r)
+        
+        painter.setPen(self.infect_color)
+        painter.setBrush(self.infect_color)
+        infect_r = self.r * ((self.get_infected() / self.get_population()) ** 0.7)
+        painter.drawEllipse(self.pos, infect_r, infect_r)
 
 
     def get_radius(self):
@@ -214,7 +218,7 @@ class City(object):
     def set_population(self, value):
         self.population.set_total_population(int(value))
         self.r = self.get_radius()
-        self.update_infected()
+        self.update_epidemic()
 
     def set_alpha(self, value):
         self.alpha = int(value)
@@ -243,10 +247,10 @@ class City(object):
 
     def infect(self, quota):
         infected = self.population.infect(quota)
-        self.update_infected()
+        self.update_epidemic()
         return infected
 
-    def update_infected(self):
+    def update_epidemic(self):
         infected = self.population.get_infected_population()
         self.is_epidemic = infected >= self.population.get_total() * EPIDEMIC_BORDER
 
@@ -263,7 +267,7 @@ class City(object):
         delta_funds -= self.parent_country.vaccination_cost * vaccinated
         delta_funds -= self.parent_country.relief_cost * self.population.get_relief_population()
 
-        self.update_infected()
+        self.update_epidemic()
 
         #print(self.population)
 
@@ -467,10 +471,14 @@ class SimulationWidget(QtWidgets.QWidget):
                   self.country.get_relief_cost(),
                   self.clock_interval / 1000,
 
-                  None
+                  self.time_counter,
+                  sum(map(City.get_population, self.country.cities)),
+                  sum(map(City.get_infected, self.country.cities)),
+                  sum(map(City.get_vaccinated, self.country.cities)),
+                  sum(map(City.get_immune, self.country.cities))
                   ]
         names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief", "Step interval (seconds)",
-                 ]
+                 "Elapsed time", "Total population", "Total infected", "Total vaccinated", "Total immune"]
         for name, label, value in zip(names, self.param_labels, values):
             label.setText("{}: {}".format(name, value))
 
@@ -619,3 +627,8 @@ class SimulationWidget(QtWidgets.QWidget):
     def step_simulation(self):
         self.stop_simulation()
         self.process_time_step()
+
+    def reset_time(self):
+        self.time_counter = 0
+        self.repaint()
+
