@@ -19,6 +19,7 @@ class Population(object):
 
         self.total_population = 0
         self.population_groups = [0 for i in range(self.N_POP_CATS)]
+        self.set_total_population(1000)
 
     def get_total(self):
         return self.total_population
@@ -157,7 +158,7 @@ class Population(object):
         new_infected = infected * self.parent_city.transport_density
         new_infected = int(new_infected * (random() / 4 + (7 / 8)))
 
-        print(new_infected)
+        #print(new_infected)
 
         # test
         # new_infected = int(self.total_population * random() / 3)
@@ -264,7 +265,7 @@ class City(object):
 
         self.update_infected()
 
-        print(self.population)
+        #print(self.population)
 
         return delta_funds
 
@@ -341,7 +342,6 @@ class Country(object):
 ###############################################################
 class SimulationWidget(QtWidgets.QWidget):
     SelectedCity = QtCore.Signal(bool)
-    SelectedCityPopulationChanged = QtCore.Signal(int)
 
     def __init__(self, country, parent = None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -350,6 +350,7 @@ class SimulationWidget(QtWidgets.QWidget):
         self.country = country
 
         self.param_labels = []
+        self.new_city_labels = []
         self.cur_city_labels = []
 
         # simulation parameters
@@ -360,6 +361,9 @@ class SimulationWidget(QtWidgets.QWidget):
         # city creation parameters
         self.new_city = City()
         self.new_city.set_alpha(NEW_CITY_ALPHA)
+
+        self.new_infect = 0
+        self.new_vaccinate = 0
 
         self.selected_city = None
 
@@ -410,17 +414,28 @@ class SimulationWidget(QtWidgets.QWidget):
 
         self.country.draw(painter)
 
-        if self.gui_page == 1 and self.containsNewCity():
-            self.new_city.draw(painter)
-            if not self.has_space_to_place():
-                pos, r = self.new_city.pos, self.new_city.r
+        if self.gui_page == 1:
+            if self.containsNewCity():
+                self.new_city.draw(painter)
+                if not self.has_space_to_place():
+                    pos, r = self.new_city.pos, self.new_city.r
 
-                new_pen = QtGui.QPen()
-                color = QtGui.QColor(255, 0, 0) # Red
-                new_pen.setColor(color)
-                new_pen.setWidth(3)
-                painter.setPen(new_pen)
-                painter.drawEllipse(pos, r, r)
+                    new_pen = QtGui.QPen()
+                    color = QtGui.QColor(255, 0, 0) # Red
+                    new_pen.setColor(color)
+                    new_pen.setWidth(3)
+                    painter.setPen(new_pen)
+                    painter.drawEllipse(pos, r, r)
+
+            values = [self.new_city.get_population(),
+                      self.new_infect, 
+                      self.new_city.vaccination_quota,
+                      self.new_vaccinate,
+                      self.new_city.transport_density
+                      ]
+            names = ["Population", "Infected", "Vaccination quota", "Vaccinated", "Transport density"]
+            for name, label, value in zip(names, self.new_city_labels, values):
+                label.setText("{}: {}".format(name, value))            
         if self.selected_city is not None:
             pos, r = self.selected_city.pos, self.selected_city.r
 
@@ -437,10 +452,12 @@ class SimulationWidget(QtWidgets.QWidget):
 
             values = [self.selected_city.get_population(),
                       self.selected_city.get_infected(), 
+                      self.selected_city.vaccination_quota,
                       self.selected_city.get_vaccinated(),
-                      self.selected_city.get_immune()
+                      self.selected_city.get_immune(),
+                      self.selected_city.transport_density
                       ]
-            names = ["Population", "Infected", "Vaccinated", "Immune"]
+            names = ["Population", "Infected", "Vaccination quota", "Vaccinated", "Immune", "Transport density"]
             for name, label, value in zip(names, self.cur_city_labels, values):
                 label.setText("{}: {}".format(name, value))
 
@@ -448,9 +465,12 @@ class SimulationWidget(QtWidgets.QWidget):
                   self.country.get_tax(),
                   self.country.get_vaccination_cost(),
                   self.country.get_relief_cost(),
-                  self.clock_interval / 1000
+                  self.clock_interval / 1000,
+
+                  None
                   ]
-        names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief", "Step interval (seconds)"]
+        names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief", "Step interval (seconds)",
+                 ]
         for name, label, value in zip(names, self.param_labels, values):
             label.setText("{}: {}".format(name, value))
 
@@ -482,6 +502,9 @@ class SimulationWidget(QtWidgets.QWidget):
         self.repaint()
 
     # selected city params management
+    def set_cur_city_labels(self, labels):
+        self.cur_city_labels = labels
+
     def set_cur_population(self, amount):
         if self.selected_city is not None:
             self.selected_city.set_population(amount)
@@ -497,16 +520,49 @@ class SimulationWidget(QtWidgets.QWidget):
             self.selected_city.vaccinate(quota)
         self.repaint()
 
-    def set_vaccination_quota(self, quota):
+    def set_cur_vaccination_quota(self, quota):
         if self.selected_city is not None:
             self.selected_city.set_vaccination_quota(quota)
         self.repaint()
 
-    def set_cur_city_labels(self, labels):
-        self.cur_city_labels = labels
+    def set_cur_transport_density(self, value):
+        if self.selected_city is not None:
+            self.selected_city.set_transport_density(value)
+        self.repaint()
+
+    # new city management
+    def set_new_city_labels(self, labels):
+        self.new_city_labels = labels
+
+    def set_new_city_population(self, value):
+        self.new_city.set_population(value)
+        self.repaint()
+
+    def set_new_infect(self, quota):
+        self.new_infect = quota
+        self.update_new_city()
+        self.repaint()
+
+    def set_new_vaccinate(self, quota):
+        self.new_vaccinate = quota
+        self.update_new_city()
+        self.repaint()
+
+    def set_new_vaccination_quota(self, quota):
+        self.new_city.set_vaccination_quota(quota)
+        self.repaint()
+
+    def set_new_transport_density(self, value):
+        self.new_city.set_transport_density(value)
+        self.repaint()
 
 
+    def update_new_city(self):
+        self.new_city.set_population(self.new_city.get_population())
+        self.new_city.vaccinate(self.new_vaccinate)
+        self.new_city.infect(self.new_infect)
 
+    ###
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Delete:
             self.remove_city()
@@ -524,6 +580,7 @@ class SimulationWidget(QtWidgets.QWidget):
             if self.gui_page == 1 and self.containsNewCity():
                 if self.has_space_to_place():
                     self.new_city.set_alpha(CITY_ALPHA)
+                    self.update_new_city()
                     self.country.add_city(self.new_city)
                     self.new_city.set_alpha(NEW_CITY_ALPHA)
                     self.repaint()
@@ -536,16 +593,9 @@ class SimulationWidget(QtWidgets.QWidget):
         if self.gui_page == 1:
             self.repaint()
 
-    def set_new_city_population(self, value):
-        self.new_city.set_population(value)
-        self.SelectedCityPopulationChanged.emit(value)
-        self.repaint()
 
     def set_infection_func(self, func):
         self.infection_update_func = func
-
-    def get_new_city_population(self):
-        return self.new_city.get_population()
 
     def gui_page_change(self, value):
         self.gui_page = value

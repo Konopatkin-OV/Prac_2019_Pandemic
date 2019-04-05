@@ -251,29 +251,118 @@ step_button.setGeometry(265, 500, 100, 40)
 step_button.clicked.connect(simulator.step_simulation)
 
 control_tabs.addTab(tab_global, "Simulation")
-#######################
+##########################################################
 tab_create_city = QtWidgets.QWidget()
 
-population_label = QtWidgets.QLabel(tab_create_city)
-population_label.setGeometry(10, 10, 200, 30)
-population_label.setText("Population: {}".format(simulator.get_new_city_population()))
+new_city_pop_label = QtWidgets.QLabel(tab_create_city)
+new_city_pop_label.setGeometry(10, 10, 300, 30)
+new_city_pop_label.setText("Total population:")
 
-simulator.SelectedCityPopulationChanged.connect(change_text_func(population_label, "Population: {}"))
+new_city_pop_input = QtWidgets.QLineEdit(tab_create_city)
+new_city_pop_input.setGeometry(310, 10, 150, 30)
 
-population_input = QtWidgets.QLineEdit(tab_create_city)
-population_input.setGeometry(10, 50, 200, 30)
+new_city_pop_button = QtWidgets.QPushButton(tab_create_city)
+new_city_pop_button.setText("Apply")
+new_city_pop_button.setGeometry(470, 10, 100, 30)
 
-input_stat_label = QtWidgets.QLabel(tab_create_city)
-input_stat_label.setGeometry(10, 80, 400, 30)
-input_stat_label.setText("")
-input_stat_label.setFont(errorFont)
-input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+new_city_pop_stat_label = QtWidgets.QLabel(tab_create_city)
+new_city_pop_stat_label.setGeometry(310, 40, 350, 30)
+new_city_pop_stat_label.setText("")
+new_city_pop_stat_label.setFont(errorFont)
+new_city_pop_stat_label.setStyleSheet("QLabel {color: #FF0000}")
 
-population_input.editingFinished.connect(change_state_func(simulator.set_new_city_population, 
-    parse_int_input_func(population_input, CITY_MIN_POPULATION, CITY_MAX_POPULATION, input_stat_label)))
+new_city_pop_button.pressed.connect(change_state_func(simulator.set_new_city_population, 
+    parse_int_input_func(new_city_pop_input, CITY_MIN_POPULATION, CITY_MAX_POPULATION, new_city_pop_stat_label)))
+
+
+new_city_infected_label = QtWidgets.QLabel(tab_create_city)
+new_city_infected_label.setGeometry(10, 70, 300, 30)
+new_city_infected_label.setText("Infected population:")
+
+new_city_infect_input = QtWidgets.QLineEdit(tab_create_city)
+new_city_infect_input.setGeometry(310, 70, 150, 30)
+
+new_city_infect_button = QtWidgets.QPushButton(tab_create_city)
+new_city_infect_button.setText("Apply")
+new_city_infect_button.setGeometry(470, 70, 100, 30)
+
+new_city_infect_stat_label = QtWidgets.QLabel(tab_create_city)
+new_city_infect_stat_label.setGeometry(310, 100, 350, 30)
+new_city_infect_stat_label.setText("")
+new_city_infect_stat_label.setFont(errorFont)
+new_city_infect_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+new_city_infect_button.pressed.connect(change_state_func(simulator.set_new_infect, 
+    parse_int_input_func(new_city_infect_input, 1, CITY_MAX_POPULATION, new_city_infect_stat_label)))
+
+
+new_city_quota_label = QtWidgets.QLabel(tab_create_city)
+new_city_quota_label.setGeometry(10, 130, 300, 30)
+new_city_quota_label.setText("Vaccination quota:")
+
+new_city_set_quota_input = QtWidgets.QLineEdit(tab_create_city)
+new_city_set_quota_input.setGeometry(310, 130, 150, 30)
+
+new_city_set_quota_button = QtWidgets.QPushButton(tab_create_city)
+new_city_set_quota_button.setText("Apply")
+new_city_set_quota_button.setGeometry(470, 130, 100, 30)
+
+new_city_set_quota_stat_label = QtWidgets.QLabel(tab_create_city)
+new_city_set_quota_stat_label.setGeometry(310, 160, 350, 30)
+new_city_set_quota_stat_label.setText("")
+new_city_set_quota_stat_label.setFont(errorFont)
+new_city_set_quota_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+new_city_set_quota_button.pressed.connect(change_state_func(simulator.set_new_vaccination_quota, 
+    parse_int_input_func(new_city_set_quota_input, 0, CITY_MAX_POPULATION, new_city_set_quota_stat_label)))
+
+
+new_city_vaccinated_label = QtWidgets.QLabel(tab_create_city)
+new_city_vaccinated_label.setGeometry(10, 190, 300, 30)
+new_city_vaccinated_label.setText("Vaccinated population:")
+
+new_city_vaccinate_input = QtWidgets.QLineEdit(tab_create_city)
+new_city_vaccinate_input.setGeometry(310, 190, 150, 30)
+
+new_city_vaccinate_button = QtWidgets.QPushButton(tab_create_city)
+new_city_vaccinate_button.setText("Apply")
+new_city_vaccinate_button.setGeometry(470, 190, 100, 30)
+
+new_city_vaccinate_stat_label = QtWidgets.QLabel(tab_create_city)
+new_city_vaccinate_stat_label.setGeometry(310, 220, 350, 30)
+new_city_vaccinate_stat_label.setText("")
+new_city_vaccinate_stat_label.setFont(errorFont)
+new_city_vaccinate_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+new_city_vaccinate_button.pressed.connect(change_state_func(simulator.set_new_vaccinate, 
+    parse_int_input_func(new_city_vaccinate_input, 1, CITY_MAX_POPULATION, new_city_vaccinate_stat_label)))
+
+
+new_city_transport_density_label = QtWidgets.QLabel(tab_create_city)
+new_city_transport_density_label.setGeometry(10, 250, 300, 30)
+new_city_transport_density_label.setText("Transport density:")
+
+new_city_transport_density_input = QtWidgets.QLineEdit(tab_create_city)
+new_city_transport_density_input.setGeometry(310, 250, 150, 30)
+
+new_city_transport_density_button = QtWidgets.QPushButton(tab_create_city)
+new_city_transport_density_button.setText("Apply")
+new_city_transport_density_button.setGeometry(470, 250, 100, 30)
+
+new_city_transport_density_stat_label = QtWidgets.QLabel(tab_create_city)
+new_city_transport_density_stat_label.setGeometry(310, 280, 350, 30)
+new_city_transport_density_stat_label.setText("")
+new_city_transport_density_stat_label.setFont(errorFont)
+new_city_transport_density_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+new_city_transport_density_button.pressed.connect(change_state_func(simulator.set_new_transport_density, 
+    parse_float_input_func(new_city_transport_density_input, 0.0, 5.0, new_city_transport_density_stat_label)))
+
+simulator.set_new_city_labels([new_city_pop_label, new_city_infected_label, new_city_quota_label, 
+                               new_city_vaccinated_label, new_city_transport_density_label])
 
 control_tabs.addTab(tab_create_city, "Create City")
-#######################
+##########################################################
 tab_manage_city = QtWidgets.QWidget()
 
 label = QtWidgets.QLabel(tab_manage_city)
@@ -281,18 +370,18 @@ label.setGeometry(100, 10, 200, 40)
 label.setText("Please, select a city")
 
 city_pop_label = QtWidgets.QLabel(tab_manage_city)
-city_pop_label.setGeometry(10, 10, 200, 30)
+city_pop_label.setGeometry(10, 10, 300, 30)
 city_pop_label.setText("Total population:")
 
 city_pop_input = QtWidgets.QLineEdit(tab_manage_city)
-city_pop_input.setGeometry(230, 10, 150, 30)
+city_pop_input.setGeometry(310, 10, 150, 30)
 
 city_pop_button = QtWidgets.QPushButton(tab_manage_city)
 city_pop_button.setText("Reset")
-city_pop_button.setGeometry(390, 10, 80, 30)
+city_pop_button.setGeometry(470, 10, 100, 30)
 
 city_pop_stat_label = QtWidgets.QLabel(tab_manage_city)
-city_pop_stat_label.setGeometry(230, 40, 350, 30)
+city_pop_stat_label.setGeometry(310, 40, 350, 30)
 city_pop_stat_label.setText("")
 city_pop_stat_label.setFont(errorFont)
 city_pop_stat_label.setStyleSheet("QLabel {color: #FF0000}")
@@ -302,45 +391,108 @@ city_pop_button.pressed.connect(change_state_func(simulator.set_cur_population,
 
 
 city_infected_label = QtWidgets.QLabel(tab_manage_city)
-city_infected_label.setGeometry(10, 70, 200, 30)
+city_infected_label.setGeometry(10, 70, 300, 30)
 city_infected_label.setText("Infected population:")
 
 city_infect_input = QtWidgets.QLineEdit(tab_manage_city)
-city_infect_input.setGeometry(230, 70, 150, 30)
+city_infect_input.setGeometry(310, 70, 150, 30)
 
 city_infect_button = QtWidgets.QPushButton(tab_manage_city)
 city_infect_button.setText("Infect")
-city_infect_button.setGeometry(390, 70, 80, 30)
+city_infect_button.setGeometry(470, 70, 100, 30)
 
 city_infect_stat_label = QtWidgets.QLabel(tab_manage_city)
-city_infect_stat_label.setGeometry(230, 110, 350, 30)
+city_infect_stat_label.setGeometry(310, 100, 350, 30)
 city_infect_stat_label.setText("")
 city_infect_stat_label.setFont(errorFont)
 city_infect_stat_label.setStyleSheet("QLabel {color: #FF0000}")
 
 city_infect_button.pressed.connect(change_state_func(simulator.infect_cur, 
-    parse_int_input_func(city_infect_input, CITY_MIN_POPULATION, CITY_MAX_POPULATION, city_infect_stat_label)))
+    parse_int_input_func(city_infect_input, 1, CITY_MAX_POPULATION, city_infect_stat_label)))
+
+
+city_quota_label = QtWidgets.QLabel(tab_manage_city)
+city_quota_label.setGeometry(10, 130, 300, 30)
+city_quota_label.setText("Vaccination quota:")
+
+city_set_quota_input = QtWidgets.QLineEdit(tab_manage_city)
+city_set_quota_input.setGeometry(310, 130, 150, 30)
+
+city_set_quota_button = QtWidgets.QPushButton(tab_manage_city)
+city_set_quota_button.setText("Apply")
+city_set_quota_button.setGeometry(470, 130, 100, 30)
+
+city_set_quota_stat_label = QtWidgets.QLabel(tab_manage_city)
+city_set_quota_stat_label.setGeometry(310, 160, 350, 30)
+city_set_quota_stat_label.setText("")
+city_set_quota_stat_label.setFont(errorFont)
+city_set_quota_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+city_set_quota_button.pressed.connect(change_state_func(simulator.set_cur_vaccination_quota, 
+    parse_int_input_func(city_set_quota_input, 0, CITY_MAX_POPULATION, city_set_quota_stat_label)))
 
 
 city_vaccinated_label = QtWidgets.QLabel(tab_manage_city)
-city_vaccinated_label.setGeometry(10, 130, 200, 30)
+city_vaccinated_label.setGeometry(10, 190, 300, 30)
 city_vaccinated_label.setText("Vaccinated population:")
 
+city_vaccinate_input = QtWidgets.QLineEdit(tab_manage_city)
+city_vaccinate_input.setGeometry(310, 190, 150, 30)
+
+city_vaccinate_button = QtWidgets.QPushButton(tab_manage_city)
+city_vaccinate_button.setText("Vaccinate")
+city_vaccinate_button.setGeometry(480, 190, 100, 30)
+
+city_vaccinate_stat_label = QtWidgets.QLabel(tab_manage_city)
+city_vaccinate_stat_label.setGeometry(310, 220, 350, 30)
+city_vaccinate_stat_label.setText("")
+city_vaccinate_stat_label.setFont(errorFont)
+city_vaccinate_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+city_vaccinate_button.pressed.connect(change_state_func(simulator.vaccinate_cur, 
+    parse_int_input_func(city_vaccinate_input, 1, CITY_MAX_POPULATION, city_vaccinate_stat_label)))
 
 city_immune_label = QtWidgets.QLabel(tab_manage_city)
-city_immune_label.setGeometry(10, 190, 200, 30)
+city_immune_label.setGeometry(10, 250, 300, 30)
 city_immune_label.setText("Immune population:")
 
-simulator.set_cur_city_labels([city_pop_label, city_infected_label, city_vaccinated_label, city_immune_label])
+
+city_transport_density_label = QtWidgets.QLabel(tab_manage_city)
+city_transport_density_label.setGeometry(10, 310, 300, 30)
+city_transport_density_label.setText("Transport density:")
+
+city_transport_density_input = QtWidgets.QLineEdit(tab_manage_city)
+city_transport_density_input.setGeometry(310, 310, 150, 30)
+
+city_transport_density_button = QtWidgets.QPushButton(tab_manage_city)
+city_transport_density_button.setText("Apply")
+city_transport_density_button.setGeometry(470, 310, 100, 30)
+
+city_transport_density_stat_label = QtWidgets.QLabel(tab_manage_city)
+city_transport_density_stat_label.setGeometry(310, 340, 350, 30)
+city_transport_density_stat_label.setText("")
+city_transport_density_stat_label.setFont(errorFont)
+city_transport_density_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+city_transport_density_button.pressed.connect(change_state_func(simulator.set_cur_transport_density, 
+    parse_float_input_func(city_transport_density_input, 0.0, 5.0, city_transport_density_stat_label)))
+
+
+simulator.set_cur_city_labels([city_pop_label, city_infected_label, city_quota_label, 
+                               city_vaccinated_label, city_immune_label, city_transport_density_label])
 
 delete_city_button = QtWidgets.QPushButton("Annihilate city", tab_manage_city)
 delete_city_button.setGeometry(100, 400, 200, 40)
 
 delete_city_button.clicked.connect(simulator.remove_city)
 
-elems = [city_pop_label, city_infected_label, city_vaccinated_label, city_immune_label,
+elems = [city_pop_label, city_infected_label, city_quota_label, 
+         city_vaccinated_label, city_immune_label, city_transport_density_label,
          city_pop_input, city_pop_button, city_pop_stat_label,
          city_infect_input, city_infect_button, city_infect_stat_label,
+         city_set_quota_input, city_set_quota_button, city_set_quota_stat_label,
+         city_transport_density_input, city_transport_density_button, city_transport_density_stat_label,
+         city_vaccinate_input, city_vaccinate_button, city_vaccinate_stat_label,
          delete_city_button]
 for elem in elems:
     elem.hide()
