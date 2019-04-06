@@ -77,14 +77,14 @@ for i in range(6,7):
     cur.set_population(10 ** i)
     cur.set_vaccination_quota(10 ** (i - 2))
     cur.population.infect(1 * 10 ** (i - 2))
-    cur.set_transport_density(1.5)
+    cur.set_transport_density(1.1)
     #cur.is_epidemic = i % 2
     #cur.alpha = 255 - (i + 1) * 25
     country.add_city(cur)
 
 country.vaccination_cost = 10.0
 country.relief_cost = 10.0
-country.current_funds = 100000.0
+country.current_funds = 10000000.0
 country.tax_per_soul = 1.0
 
 #########################
@@ -217,14 +217,14 @@ relief_input.editingFinished.connect(change_state_func(simulator.set_relief_cost
 ###
 
 speed_label = QtWidgets.QLabel(tab_global)
-speed_label.setGeometry(50, 390, 300, 40)
+speed_label.setGeometry(25, 400, 300, 40)
 speed_label.setText("Step interval (seconds): 1")
 
 speed_input = QtWidgets.QLineEdit(tab_global)
-speed_input.setGeometry(50, 430, 200, 30)
+speed_input.setGeometry(25, 440, 200, 30)
 
 speed_input_stat_label = QtWidgets.QLabel(tab_global)
-speed_input_stat_label.setGeometry(50, 460, 400, 30)
+speed_input_stat_label.setGeometry(25, 470, 400, 30)
 speed_input_stat_label.setText("")
 speed_input_stat_label.setFont(errorFont)
 speed_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
@@ -234,32 +234,31 @@ speed_input.editingFinished.connect(change_state_func(simulator.set_clock_interv
 
 ###
 
-time_label = QtWidgets.QLabel(tab_global)
-time_label.setGeometry(350, 10, 300, 40)
-time_label.setText("Elapsed time: 0")
-
-time_reset_button = QtWidgets.QPushButton("Reset", tab_global)
-time_reset_button.setGeometry(400, 50, 100, 40)
-time_reset_button.clicked.connect(simulator.reset_time)
-
 total_population_label = QtWidgets.QLabel(tab_global)
-total_population_label.setGeometry(300, 120, 300, 40)
+total_population_label.setGeometry(300, 40, 300, 40)
 total_population_label.setText("Total population: 0")
 
 total_infected_label = QtWidgets.QLabel(tab_global)
-total_infected_label.setGeometry(300, 170, 300, 40)
+total_infected_label.setGeometry(300, 80, 300, 40)
 total_infected_label.setText("Total infected: 0")
 
 total_vaccinated_label = QtWidgets.QLabel(tab_global)
-total_vaccinated_label.setGeometry(300, 220, 300, 40)
+total_vaccinated_label.setGeometry(300, 120, 300, 40)
 total_vaccinated_label.setText("Total vaccinated: 0")
 
 total_immune_label = QtWidgets.QLabel(tab_global)
-total_immune_label.setGeometry(300, 270, 300, 40)
+total_immune_label.setGeometry(300, 160, 300, 40)
 total_immune_label.setText("Total immune: 0")
 
-simulator.set_param_labels([cur_funds_label, tax_label, vaccination_label, relief_label, speed_label,
-                            time_label, total_population_label, total_infected_label, total_vaccinated_label, total_immune_label])
+
+time_label = QtWidgets.QLabel(tab_global)
+time_label.setGeometry(300, 400, 300, 40)
+time_label.setText("Elapsed time: 0")
+
+simulation_reset_button = QtWidgets.QPushButton("Reset simulation", tab_global)
+simulation_reset_button.setGeometry(400, 500, 170, 40)
+simulation_reset_button.clicked.connect(simulator.reset_simulation)
+simulation_reset_button.setEnabled(False)
 
 #####
 
@@ -270,10 +269,58 @@ start_button.clicked.connect(simulator.start_simulation)
 pause_button = QtWidgets.QPushButton("Pause", tab_global)
 pause_button.setGeometry(145, 500, 100, 40)
 pause_button.clicked.connect(simulator.stop_simulation)
+pause_button.setEnabled(False)
 
 step_button = QtWidgets.QPushButton("Step", tab_global)
 step_button.setGeometry(265, 500, 100, 40)
 step_button.clicked.connect(simulator.step_simulation)
+
+
+simulation_start_label = QtWidgets.QLabel(tab_global)
+simulation_start_label.setGeometry(300, 220, 300, 40)
+simulation_start_label.setText("Simulation start:")
+
+simulation_start_input = QtWidgets.QComboBox(tab_global)
+simulation_start_input.setGeometry(300, 260, 200, 30)
+simulation_start_input.addItems(MONTHS[1:])
+simulation_start_input.setCurrentIndex(8)
+QtCore.QObject.connect(simulation_start_input, QtCore.SIGNAL("currentIndexChanged(int)"),
+                       simulator.set_start_month)
+
+
+simulator.set_clock_control_buttons([start_button, pause_button, step_button, simulation_reset_button])
+
+
+simulation_duration_label = QtWidgets.QLabel(tab_global)
+simulation_duration_label.setGeometry(300, 295, 300, 40)
+simulation_duration_label.setText("Duration (months): 0")
+
+simulation_duration_input = QtWidgets.QLineEdit(tab_global)
+simulation_duration_input.setGeometry(300, 335, 200, 30)
+
+simulation_duration_input_stat_label = QtWidgets.QLabel(tab_global)
+simulation_duration_input_stat_label.setGeometry(300, 365, 400, 30)
+simulation_duration_input_stat_label.setText("")
+simulation_duration_input_stat_label.setFont(errorFont)
+simulation_duration_input_stat_label.setStyleSheet("QLabel {color: #FF0000}")
+
+simulation_duration_input.editingFinished.connect(change_state_func(simulator.set_simulation_duration, 
+    parse_int_input_func(simulation_duration_input, 
+                         MIN_SIMULATION_DURATION, MAX_SIMULATION_DURATION, 
+                         simulation_duration_input_stat_label)))
+
+
+simulator.set_param_labels([cur_funds_label, tax_label, vaccination_label, relief_label, speed_label, time_label, 
+                            total_population_label, total_infected_label, total_vaccinated_label, total_immune_label,
+                            simulation_duration_label])
+
+simulation_finish_label = QtWidgets.QLabel(tab_global)
+simulation_finish_label.setGeometry(300, 430, 250, 40)
+simulation_finish_label.setText("Preparing for simulation")
+simulation_finish_label.setFont(errorFont)
+simulation_finish_label.setStyleSheet("QLabel {color: #FF0000}")
+
+simulator.SimulationState.connect(simulation_finish_label.setText)
 
 control_tabs.addTab(tab_global, "Simulation")
 ##########################################################
@@ -390,9 +437,9 @@ control_tabs.addTab(tab_create_city, "Create City")
 ##########################################################
 tab_manage_city = QtWidgets.QWidget()
 
-label = QtWidgets.QLabel(tab_manage_city)
-label.setGeometry(100, 10, 200, 40)
-label.setText("Please, select a city")
+idle_label = QtWidgets.QLabel(tab_manage_city)
+idle_label.setGeometry(100, 10, 200, 40)
+idle_label.setText("Please, select a city")
 
 city_pop_label = QtWidgets.QLabel(tab_manage_city)
 city_pop_label.setGeometry(10, 10, 300, 30)
@@ -522,10 +569,13 @@ elems = [city_pop_label, city_infected_label, city_quota_label,
 for elem in elems:
     elem.hide()
 
-simulator.SelectedCity.connect(show_function([[label], elems]))
+simulator.SelectedCity.connect(show_function([[idle_label], elems]))
 
 control_tabs.addTab(tab_manage_city, "Manage City")
 ###########################################
+simulator.set_preparation_only_elems([simulation_start_input, city_pop_input, city_pop_button, 
+                                      tab_create_city, cur_funds_input])
+
 
 QtCore.QObject.connect(control_tabs, QtCore.SIGNAL("currentChanged(int)"),
                        simulator.gui_page_change)
@@ -538,11 +588,11 @@ app.exec_()
 #-> alesapin@gmail.com
 
 # TODO: 
-# прикрутить даты и сезонность (начало и конец)
-# прикрутить таки типы городов и заражать в зависимости от типа + процентно пропорционально населению
-# блокировать кнопки pause и step в соответствующих ситуациях
-# глобальный reset
-# нельзя добавлять города в течение симуляции
+# DONE: прикрутить даты и сезонность (начало и конец)
+# DONE: прикрутить таки типы городов и заражать в зависимости от типа + процентно пропорционально населению
+# DONE: блокировать кнопки pause и step в соответствующих ситуациях
+# DONE: глобальный reset
+# DONE: нельзя добавлять города в течение симуляции
 
 # bonus: добавить автоматический выбор квоты на вакцинацию
 # bonusbonus: сохранение?

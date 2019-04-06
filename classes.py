@@ -1,6 +1,6 @@
 from PySide2 import QtCore, QtGui, QtWidgets
 from PySide2.QtCore import QPointF, QRectF
-from datetime import date
+from datetime import date, timedelta
 from copy import deepcopy
 from random import random, randrange
 
@@ -149,11 +149,15 @@ class Population(object):
         return quota
 
 
-    def standard_process(self):
+    def standard_process(self, cur_month):
         infected = self.get_infected_population()
         total = self.get_total()
         vaccinated = self.get_vaccinated_population()
-        new_infected = infected * ((total - vaccinated) / total) * self.parent_city.transport_density
+        new_infected = infected * ((total - vaccinated) / total)
+        new_infected *= self.parent_city.transport_density
+        new_infected *= CITY_SIZE_INFECT_COEFFICIENTS[self.parent_city.size_type]
+        new_infected *= 1 + ((total / CITY_MAX_POPULATION) ** 2) / 10
+        new_infected *= MONTH_INFECTION_COEFFICIENTS[cur_month]
         new_infected = int(new_infected * (random() / 4 + (7 / 8)))
 
         #print(new_infected)
@@ -172,6 +176,7 @@ class City(object):
         self.parent_country = None
 
         self.population = Population(self)
+        self.size_type = 0
         self.r = 10
 
         self.transport_density = 1.0
@@ -200,13 +205,18 @@ class City(object):
         painter.drawEllipse(self.pos, infect_r, infect_r)
 
 
+    def update_size(self):
+        self.size_type = 0
+        pop = self.population.get_total()
+        for border in CITY_SIZE_POPULATION:
+            if pop >= border:
+                self.size_type += 1
+            else:
+                break
+        self.r = CITY_SIZES[self.size_type]
+
     def get_radius(self):
-        res = 0
-        tmp = self.population.get_total()
-        while (tmp >= 10):
-            tmp /= 10
-            res += 1
-        return CITY_SIZES[res]
+        return self.r
 
 
     def set_transport_density(self, value):
@@ -217,7 +227,7 @@ class City(object):
 
     def set_population(self, value):
         self.population.set_total_population(int(value))
-        self.r = self.get_radius()
+        self.update_size()
         self.update_epidemic()
 
     def set_alpha(self, value):
@@ -254,14 +264,14 @@ class City(object):
         infected = self.population.get_infected_population()
         self.is_epidemic = infected >= self.population.get_total() * EPIDEMIC_BORDER
 
-    def process_time_step(self, infection_update_func, funds_quota):
+    def process_time_step(self, cur_month, infection_update_func, funds_quota):
         # must return funds balance delta from current city
 
         self.population.pass_week()
 
         vaccinated = self.vaccinate(min(funds_quota, self.vaccination_quota))
 
-        infection_update_func(self.population)
+        infection_update_func(self.population, cur_month)
 
         delta_funds = self.parent_country.tax_per_soul * self.population.get_taxable_population()
         delta_funds -= self.parent_country.vaccination_cost * vaccinated
@@ -313,9 +323,9 @@ class Country(object):
                 return city
         return None
 
-    def process_time_step(self, infection_update_func):
+    def process_time_step(self, cur_month, infection_update_func):
         for city in self.cities:
-            self.current_funds += city.process_time_step(infection_update_func, 
+            self.current_funds += city.process_time_step(cur_month, infection_update_func, 
                                   max(0, int(self.current_funds / self.vaccination_cost)))
 
 
@@ -346,6 +356,7 @@ class Country(object):
 ###############################################################
 class SimulationWidget(QtWidgets.QWidget):
     SelectedCity = QtCore.Signal(bool)
+    SimulationState = QtCore.Signal(str)
 
     def __init__(self, country, parent = None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -377,9 +388,19 @@ class SimulationWidget(QtWidgets.QWidget):
         self.clock = QtCore.QTimer()
         self.clock.setInterval(1000)
         self.clock.timeout.connect(self.process_time_step)
+        self.clock_control_buttons = []
 
         self.simulating = False
-        self.time_counter = 0
+        self.preparing = True
+        self.start_time = DEFAULT_START_DATE
+        self.time = self.start_time
+        self.simulation_duration = 6
+        time_delta = timedelta(days=self.simulation_duration * MONTH_DURATION)
+        self.finish_time = self.start_time + time_delta
+
+        self.preparation_only_elems = []
+
+        self.bckp_country = deepcopy(country)
 
 
     def containsNewCity(self):
@@ -419,7 +440,7 @@ class SimulationWidget(QtWidgets.QWidget):
         self.country.draw(painter)
 
         if self.gui_page == 1:
-            if self.containsNewCity():
+            if self.preparing and self.containsNewCity():
                 self.new_city.draw(painter)
                 if not self.has_space_to_place():
                     pos, r = self.new_city.pos, self.new_city.r
@@ -471,14 +492,17 @@ class SimulationWidget(QtWidgets.QWidget):
                   self.country.get_relief_cost(),
                   self.clock_interval / 1000,
 
-                  self.time_counter,
+                  "{} {}".format(MONTHS[self.time.month], self.time.day),
                   sum(map(City.get_population, self.country.cities)),
                   sum(map(City.get_infected, self.country.cities)),
                   sum(map(City.get_vaccinated, self.country.cities)),
-                  sum(map(City.get_immune, self.country.cities))
+                  sum(map(City.get_immune, self.country.cities)),
+
+                  self.simulation_duration
                   ]
         names = ["Current funds", "Taxes per person", "Vaccination cost", "Relief", "Step interval (seconds)",
-                 "Elapsed time", "Total population", "Total infected", "Total vaccinated", "Total immune"]
+                 "Current time", "Total population", "Total infected", "Total vaccinated", "Total immune",
+                 "Duration (months)"]
         for name, label, value in zip(names, self.param_labels, values):
             label.setText("{}: {}".format(name, value))
 
@@ -514,7 +538,7 @@ class SimulationWidget(QtWidgets.QWidget):
         self.cur_city_labels = labels
 
     def set_cur_population(self, amount):
-        if self.selected_city is not None:
+        if self.selected_city is not None and self.preparing:
             self.selected_city.set_population(amount)
         self.repaint()
 
@@ -580,12 +604,13 @@ class SimulationWidget(QtWidgets.QWidget):
             else:
                 self.start_simulation()
         elif event.key() == QtCore.Qt.Key_Right:
-            self.step_simulation()
+            if not self.simulating:
+                self.step_simulation()
 
     def mousePressEvent(self, event):
         self.setFocus()
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
-            if self.gui_page == 1 and self.containsNewCity():
+            if self.gui_page == 1 and self.preparing and self.containsNewCity() :
                 if self.has_space_to_place():
                     self.new_city.set_alpha(CITY_ALPHA)
                     self.update_new_city()
@@ -610,25 +635,85 @@ class SimulationWidget(QtWidgets.QWidget):
         # self.selected_city = None
         self.repaint()
 
+
+    def set_clock_control_buttons(self, buttons):
+        self.clock_control_buttons = buttons
+
     def process_time_step(self):
-        self.country.process_time_step(self.infection_update_func)
-        self.time_counter += 1
+        if self.preparing:
+            self.init_simulation()
+        self.country.process_time_step(self.time.month, self.infection_update_func)
+        if (self.country.current_funds < 0):
+            self.finish_simulation()
+            self.SimulationState.emit("Simulation finished: flat-broke")
+        self.time += SIMULATION_STEP
+        if (self.time >= self.finish_time):
+            self.finish_simulation()
+            self.SimulationState.emit("Simulation finished: time is up")
         self.repaint()
+
+    def set_time_buttons_state(self, states):
+        for button, state in zip(self.clock_control_buttons, states):
+            button.setEnabled(state)
 
     def start_simulation(self):
         self.process_time_step()
         self.clock.start()
         self.simulating = True
+        self.set_time_buttons_state([False, True, False])
 
     def stop_simulation(self):
         self.clock.stop()
         self.simulating = False
+        self.set_time_buttons_state([True, False, True])
 
     def step_simulation(self):
         self.stop_simulation()
         self.process_time_step()
 
-    def reset_time(self):
-        self.time_counter = 0
+
+    def set_start_month(self, month):
+        if self.preparing:
+            self.start_time = date(DEFAULT_START_DATE.year, month + 1, DEFAULT_START_DATE.day)
+            self.time = self.start_time
+        self.repaint()
+
+    def set_simulation_duration(self, duration):
+        if self.preparing:
+            self.simulation_duration = duration
+        self.repaint()
+
+
+    def set_preparation_only_elems(self, elems):
+        self.preparation_only_elems = elems
+
+    def init_simulation(self):
+        self.bckp_country = deepcopy(self.country)
+        time_delta = timedelta(self.simulation_duration * MONTH_DURATION)
+        self.finish_time = self.start_time + time_delta
+        self.preparing = False
+        self.SimulationState.emit("Simulation in process")
+        self.clock_control_buttons[-1].setEnabled(True)
+
+        for elem in self.preparation_only_elems:
+            elem.setEnabled(False)
+
+    def finish_simulation(self):
+        self.finished = True
+        self.stop_simulation()
+        self.set_time_buttons_state([False, False, False, True])
+
+    def reset_simulation(self):
+        self.preparing = True
+        self.finished = False
+        self.SimulationState.emit("Preparing for simulation")
+        self.stop_simulation()
+        self.time = self.start_time
+        self.country = deepcopy(self.bckp_country)
+        self.set_time_buttons_state([True, False, True, False])
+
+        for elem in self.preparation_only_elems:
+            elem.setEnabled(True)
+
         self.repaint()
 
