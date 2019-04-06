@@ -390,8 +390,9 @@ class SimulationWidget(QtWidgets.QWidget):
         self.clock.timeout.connect(self.process_time_step)
         self.clock_control_buttons = []
 
-        self.simulating = False
         self.preparing = True
+        self.simulating = False
+        self.finished = False
         self.start_time = DEFAULT_START_DATE
         self.time = self.start_time
         self.simulation_duration = 6
@@ -543,22 +544,22 @@ class SimulationWidget(QtWidgets.QWidget):
         self.repaint()
 
     def infect_cur(self, quota):
-        if self.selected_city is not None:
+        if self.selected_city is not None and not self.finished:
             self.selected_city.infect(quota)
         self.repaint()
 
     def vaccinate_cur(self, quota):
-        if self.selected_city is not None:
+        if self.selected_city is not None and not self.finished:
             self.selected_city.vaccinate(quota)
         self.repaint()
 
     def set_cur_vaccination_quota(self, quota):
-        if self.selected_city is not None:
+        if self.selected_city is not None and not self.finished:
             self.selected_city.set_vaccination_quota(quota)
         self.repaint()
 
     def set_cur_transport_density(self, value):
-        if self.selected_city is not None:
+        if self.selected_city is not None and not self.finished:
             self.selected_city.set_transport_density(value)
         self.repaint()
 
@@ -596,16 +597,17 @@ class SimulationWidget(QtWidgets.QWidget):
 
     ###
     def keyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_Delete:
-            self.remove_city()
-        elif event.key() == QtCore.Qt.Key_Space:
-            if self.simulating:
-                self.stop_simulation()
-            else:
-                self.start_simulation()
-        elif event.key() == QtCore.Qt.Key_Right:
-            if not self.simulating:
-                self.step_simulation()
+        if not self.finished:
+            if event.key() == QtCore.Qt.Key_Delete and self.preparing:
+                self.remove_city()
+            elif event.key() == QtCore.Qt.Key_Space:
+                if self.simulating:
+                    self.stop_simulation()
+                else:
+                    self.start_simulation()
+            elif event.key() == QtCore.Qt.Key_Right:
+                if not self.simulating:
+                    self.step_simulation()
 
     def mousePressEvent(self, event):
         self.setFocus()

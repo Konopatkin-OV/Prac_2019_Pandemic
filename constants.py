@@ -25,7 +25,7 @@ CITY_SIZE_INFECT_COEFFICIENTS = [1.0, 1.1, 1.3]
 MONTHS = ["Zeromber", "January", "February", "March", "April", "May", "June", 
           "July", "August", "September", "October", "November", "December"]
 MONTH_DURATION = 30 # days
-MONTH_INFECTION_COEFFICIENTS = [0.0, 0.8, 0.9, 1.0, 1.1, 0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1, 0.9]
+MONTH_INFECTION_COEFFICIENTS = [0.0, 1.2, 1.1, 1.0, 0.9, 0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.2, 1.2]
 DEFAULT_START_DATE = date(2000, 9, 1)
 MIN_SIMULATION_DURATION = 6  # months
 MAX_SIMULATION_DURATION = 24 # months

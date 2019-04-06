@@ -574,7 +574,7 @@ simulator.SelectedCity.connect(show_function([[idle_label], elems]))
 control_tabs.addTab(tab_manage_city, "Manage City")
 ###########################################
 simulator.set_preparation_only_elems([simulation_start_input, city_pop_input, city_pop_button, 
-                                      tab_create_city, cur_funds_input])
+                                      tab_create_city, cur_funds_input, delete_city_button])
 
 
 QtCore.QObject.connect(control_tabs, QtCore.SIGNAL("currentChanged(int)"),
